@@ -21,9 +21,12 @@ class NumerinCompiler:
             var_name, value = line.split('=')
             var_name = var_name.strip()
             value = value.strip()
-            if value.isalpha():
-                value = self.letter_to_number(value)
-            self.variables[var_name] = value
+            if any(op in value for op in ['+', '-', '*', '/']):
+                self.handle_operation(var_name, value)
+            else:
+                if value.isalpha():
+                    value = self.letter_to_number(value)
+                self.variables[var_name] = int(value)
         elif line.startswith('631'):
             # Comando PRINT
             return self.handle_print(line)
@@ -53,13 +56,13 @@ class NumerinCompiler:
             return "Palabra Clave" if token in ['631', '625', '626', '623'] else "Número"
         elif token.isalpha():
             return "Token" if token in ["FOR", "WHILE", "IF", "ELSE", "SWITCH", "CASE", "BREAK", "EXIT", "PRINT", "DEF"] else "Identificador"
-        elif token in ["(", ")", "=", "{", "}", ";", ",", "<", ">", "==", "<=", ">="]:
+        elif token in ["(", ")", "=", "{", "}", ";", ",", "<", ">", "==", "<=", ">=", "+", "-", "*", "/"]:
             return "Simbología"
         else:
             return "Carácter no reconocido"
 
     def letter_to_number(self, letter):
-        return str(ord(letter.upper()) - 65)
+        return ord(letter.upper()) - 65
 
     def handle_print(self, line):
         _, var_name = line.split('(')
@@ -146,6 +149,33 @@ class NumerinCompiler:
                     value = self.letter_to_number(value)
                 return var.strip(), op.strip(), value.strip()
         raise ValueError("Operador de comparación no reconocido")
+
+    def handle_operation(self, var_name, operation):
+        try:
+            if '+' in operation:
+                operand1, operand2 = operation.split('+')
+                result = self.evaluate_operand(operand1) + self.evaluate_operand(operand2)
+            elif '-' in operation:
+                operand1, operand2 = operation.split('-')
+                result = self.evaluate_operand(operand1) - self.evaluate_operand(operand2)
+            elif '*' in operation:
+                operand1, operand2 = operation.split('*')
+                result = self.evaluate_operand(operand1) * self.evaluate_operand(operand2)
+            elif '/' in operation:
+                operand1, operand2 = operation.split('/')
+                result = self.evaluate_operand(operand1) // self.evaluate_operand(operand2)  # Usar división entera
+            self.variables[var_name] = result
+        except Exception as e:
+            return f"Error: Sintaxis incorrecta en la operación ({str(e)})"
+
+    def evaluate_operand(self, operand):
+        operand = operand.strip()
+        if operand in self.variables:
+            return self.variables[operand]
+        elif operand.isalpha():
+            return self.letter_to_number(operand)
+        else:
+            return int(operand)
 
     def indent_code(self, block, indent_level):
         indented_lines = []
